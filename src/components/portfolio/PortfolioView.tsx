@@ -1,204 +1,31 @@
 "use client";
-
+import Link from "next/link";
+import { useState } from "react";
 import styles from "./portfolio.module.css";
 import type { PortfolioRecord } from "@/lib/db";
 import { useT } from "@/components/LocaleProvider";
-
+import Icon from "@/components/ui/Icon";
+import { ProjectArt } from "@/components/preview/PortfolioPreview";
+function PortfolioImage({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed || !src) return null;
+  // External user-supplied images are intentionally not sent through an image proxy.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} loading="lazy" />;
+}
 export function PortfolioView({ portfolio }: { portfolio: PortfolioRecord }) {
-  const t = useT();
-  const p = portfolio.profile;
-  return (
-    <div className={styles.shell} data-theme={portfolio.theme}>
-      <div className={styles.document}>
-        <header className={styles.header}>
-          {p.avatarUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.avatarUrl} alt={p.fullName} className={styles.avatar} />
-          )}
-          <div className={styles.headerText}>
-            <h1 className={styles.name}>{p.fullName}</h1>
-            <p className={styles.headline}>{p.headline}</p>
-            <div className={styles.contactRow}>
-              {p.location && <span className={styles.contactItem}>📍 {p.location}</span>}
-              {p.email && (
-                <a href={`mailto:${p.email}`} className={styles.contactItem}>
-                  ✉ {p.email}
-                </a>
-              )}
-              {portfolio.socials.map((s) => (
-                <a
-                  key={s.url}
-                  href={s.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.contactItem}
-                >
-                  {s.label}
-                </a>
-              ))}
-            </div>
-          </div>
-        </header>
-
-        <div className={styles.body}>
-          <section className={styles.section}>
-            <div className={styles.sectionLabel}>{t("portfolio.section.about")}</div>
-            <div className={styles.sectionContent}>
-              <p className={styles.prose}>{p.bio}</p>
-            </div>
-          </section>
-
-          {portfolio.experience.length > 0 && (
-            <section className={styles.section}>
-              <div className={styles.sectionLabel}>{t("portfolio.section.experience")}</div>
-              <div className={styles.sectionContent}>
-                {portfolio.experience.map((e, i) => (
-                  <div key={i} className={styles.expItem}>
-                    <div>
-                      <div className={styles.expHead}>
-                        <span className={styles.expTitle}>{e.role}</span>
-                        <span className={styles.expDate}>
-                          {e.startDate} – {e.current ? "Present" : e.endDate}
-                        </span>
-                      </div>
-                      <div className={styles.expCompany}>{e.company}</div>
-                      {e.location && <p className={styles.expMeta}>{e.location}</p>}
-                      {e.highlights.length > 0 && (
-                        <ul className={styles.bullets}>
-                          {e.highlights.map((h, j) => (
-                            <li key={j}>{h}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {portfolio.projects.length > 0 && (
-            <section className={styles.section}>
-              <div className={styles.sectionLabel}>{t("portfolio.section.projects")}</div>
-              <div className={styles.sectionContent}>
-                {portfolio.projects.map((proj, i) => (
-                  <div key={i} className={styles.card}>
-                    <div className={styles.cardHead}>
-                      <span className={styles.cardTitle}>{proj.title}</span>
-                      {proj.featured && <span className={styles.featured}>{t("portfolio.featured")}</span>}
-                    </div>
-                    <p className={styles.cardBody}>{proj.description}</p>
-                    {proj.techTags.length > 0 && (
-                      <div className={styles.tagRow}>
-                        {proj.techTags.map((t) => (
-                          <span key={t} className={styles.tag}>
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {(proj.repoUrl || proj.liveUrl) && (
-                      <div className={styles.linkRow}>
-                        {proj.repoUrl && (
-                          <a href={proj.repoUrl} target="_blank" rel="noopener noreferrer">
-                            {t("portfolio.code")}
-                          </a>
-                        )}
-                        {proj.liveUrl && (
-                          <a href={proj.liveUrl} target="_blank" rel="noopener noreferrer">
-                            {t("portfolio.live")}
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {portfolio.skills.length > 0 && (
-            <section className={styles.section}>
-              <div className={styles.sectionLabel}>{t("portfolio.section.skills")}</div>
-              <div className={styles.sectionContent}>
-                <div className={styles.skillList}>
-                  {portfolio.skills.map((s, i) => (
-                    <span key={i} className={styles.skillPill}>
-                      {s.name}
-                      {s.category ? ` · ${s.category}` : ""}
-                      <span className={styles.skillStars}>{"★".repeat(s.level)}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {portfolio.events.length > 0 && (
-            <section className={styles.section}>
-              <div className={styles.sectionLabel}>{t("portfolio.section.events")}</div>
-              <div className={styles.sectionContent}>
-                {portfolio.events.map((ev, i) => (
-                  <div key={i} className={styles.card}>
-                    <div className={styles.cardHead}>
-                      <span className={styles.cardTitle}>{ev.title}</span>
-                      {ev.date && <span className={styles.cardMeta}>{ev.date}</span>}
-                    </div>
-                    {ev.role && <p className={styles.eventRole}>{ev.role}</p>}
-                    {ev.description && <p className={styles.eventBody}>{ev.description}</p>}
-                    {ev.url && (
-                      <a href={ev.url} target="_blank" rel="noopener noreferrer" className={styles.eventLink}>
-                        {t("portfolio.link")}
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {portfolio.awards.length > 0 && (
-            <section className={styles.section}>
-              <div className={styles.sectionLabel}>{t("portfolio.section.awards")}</div>
-              <div className={styles.sectionContent}>
-                {portfolio.awards.map((a, i) => (
-                  <div key={i} className={styles.card}>
-                    <div className={styles.cardHead}>
-                      <span className={styles.cardTitle}>{a.title}</span>
-                      {a.date && <span className={styles.cardMeta}>{a.date}</span>}
-                    </div>
-                    {(a.issuer || a.result) && (
-                      <p className={styles.eventRole}>
-                        {a.issuer}
-                        {a.issuer && a.result ? " · " : ""}
-                        {a.result}
-                      </p>
-                    )}
-                    {a.description && <p className={styles.eventBody}>{a.description}</p>}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <footer className={styles.footer}>
-            {t("portfolio.footer")}{" "}
-            <span className="mx-2">· {portfolio.views} {t("portfolio.views")}</span>
-            <button
-              onClick={() => window.print()}
-              className="mx-2 inline-flex items-center rounded-full border border-[#1f3a1f]/30 px-3 py-1 text-xs font-semibold text-[#1f3a1f] transition hover:bg-[#e6efe6]"
-            >
-              Print / PDF
-            </button>
-            <a
-              href={`/api/portfolios/${portfolio.slug}/export`}
-              className="inline-flex items-center rounded-full bg-[#1f3a1f] px-4 py-1.5 text-xs font-semibold text-[#f5f0e6] transition hover:bg-[#2d5a27]"
-            >
-              {t("portfolio.export")}
-            </a>
-          </footer>
-        </div>
-      </div>
-    </div>
-  );
+  const t = useT(); const p = portfolio.profile; const [copied, setCopied] = useState(false);
+  const initials = p.fullName.split(" ").slice(0, 2).map(n => n[0]).join("");
+  async function copyLink() { try { await navigator.clipboard.writeText(window.location.href); setCopied(true); } catch { setCopied(false); } }
+  return <div className={styles.shell} data-theme={portfolio.theme}><div className={styles.document}>
+    <header className={styles.nav}><Link href={`/p/${portfolio.slug}`} className={styles.monogram}>{initials}<span>.</span></Link><nav aria-label="Portfolio navigation">{portfolio.projects.length > 0 && <a href="#work">{t("portfolio.section.projects")}</a>}<a href="#about">{t("portfolio.section.about")}</a>{p.email && <a href={`mailto:${p.email}`}>{t("portfolio.contact")} <Icon name="external" size={12} /></a>}</nav></header>
+    <section className={styles.hero}><div><span className={styles.eyebrow}><i />{t("portfolio.welcome")}</span><h1>{p.fullName}<span>.</span></h1><p className={styles.headline}>{p.headline}</p><div className={styles.contactRow}>{p.location && <span><Icon name="pin" size={13} />{p.location}</span>}{portfolio.socials.map((s, i) => <a key={i} href={s.url} target="_blank" rel="noopener noreferrer">{s.label}<Icon name="external" size={12} /></a>)}</div>{p.email && <a className={styles.contactButton} href={`mailto:${p.email}`}>{t("portfolio.getInTouch")}<Icon name="arrow" size={15} /></a>}</div>{p.avatarUrl && <div className={styles.avatarWrap}><div className={styles.avatarFallback}>{initials}<Icon name="spark" size={33} /></div><PortfolioImage src={p.avatarUrl} alt={p.fullName} className={styles.avatar} /></div>}</section>
+    {portfolio.slug === "demo-portfolio" && <div className={styles.demoNote}><span>{t("portfolio.demoNote")}</span><Link href="/create">{t("home.cta")}<Icon name="arrow" size={13} /></Link></div>}
+    {portfolio.projects.length > 0 && <section id="work" className={styles.section}><div className={styles.sectionHeading}><h2>{t("portfolio.selectedWork")}</h2><span>{String(portfolio.projects.length).padStart(2, "0")} {t("portfolio.section.projects").toLowerCase()}</span></div><div className={styles.projects}>{portfolio.projects.map((project, i) => <article key={i} className={styles.project}><div className={styles.projectImage}><ProjectArt index={i} />{project.imageUrl && <PortfolioImage src={project.imageUrl} alt={project.title} className={styles.projectPhoto} />}</div><div className={styles.projectTitle}><h3>{project.title}</h3>{project.featured && <span>{t("portfolio.featured")}</span>}</div><p>{project.description}</p><div className={styles.tags}>{project.techTags.map(tag => <span key={tag}>{tag}</span>)}</div><div className={styles.projectLinks}>{project.repoUrl && <a href={project.repoUrl} target="_blank" rel="noopener noreferrer">{t("portfolio.code")}<Icon name="external" size={12} /></a>}{project.liveUrl && <a href={project.liveUrl} target="_blank" rel="noopener noreferrer">{t("portfolio.live")}<Icon name="external" size={12} /></a>}</div></article>)}</div></section>}
+    <section id="about" className={`${styles.section} ${styles.about}`}><h2>{t("portfolio.section.about")}<Icon name="spark" size={26} /></h2><div><p className={styles.bio}>{p.bio}</p>{portfolio.skills.length > 0 && <div className={styles.skillSection}><h3>{t("portfolio.section.skills")}</h3><div className={styles.tags}>{portfolio.skills.map((skill, i) => <span key={i} title={`${skill.category ? `${skill.category} · ` : ""}${skill.level}/5`}>{skill.name}<span className={styles.skillLevel} aria-label={`${skill.level} out of 5`}>{Array.from({ length: 5 }, (_, j) => <i key={j} className={j < skill.level ? styles.filled : ""} />)}</span></span>)}</div></div>}</div></section>
+    {portfolio.experience.length > 0 && <section className={`${styles.section} ${styles.splitSection}`}><h2>{t("portfolio.section.experience")}</h2><div>{portfolio.experience.map((job, i) => <article key={i} className={styles.experience}><div className={styles.experienceTop}><h3>{job.role}</h3><span>{job.startDate} — {job.current ? t("portfolio.present") : job.endDate || "—"}</span></div><p className={styles.company}>{job.company}{job.location ? ` · ${job.location}` : ""}</p>{job.highlights.length > 0 && <ul>{job.highlights.map((highlight, i) => <li key={i}>{highlight}</li>)}</ul>}</article>)}</div></section>}
+    {portfolio.events.length > 0 && <section className={`${styles.section} ${styles.splitSection}`}><h2>{t("portfolio.section.events")}</h2><div>{portfolio.events.map((event, i) => <article key={i} className={styles.detail}><div className={styles.experienceTop}><h3>{event.title}</h3><span>{event.date}</span></div>{event.role && <p className={styles.company}>{event.role}</p>}{event.description && <p>{event.description}</p>}{event.url && <a href={event.url} target="_blank" rel="noopener noreferrer">{t("portfolio.link")}<Icon name="external" size={12} /></a>}</article>)}</div></section>}
+    {portfolio.awards.length > 0 && <section className={`${styles.section} ${styles.splitSection}`}><h2>{t("portfolio.section.awards")}</h2><div>{portfolio.awards.map((award, i) => <article key={i} className={styles.detail}><div className={styles.experienceTop}><h3>{award.title}</h3><span>{award.date}</span></div><p className={styles.company}>{[award.issuer, award.result].filter(Boolean).join(" · ")}</p>{award.description && <p>{award.description}</p>}</article>)}</div></section>}
+    <footer className={styles.footer}><div><Link href="/" className={styles.builtWith}><Icon name="spark" size={15} />Portfolio Generator.</Link><span>{portfolio.views} {t("portfolio.views")}</span></div><div><button type="button" onClick={copyLink}><Icon name="copy" size={13} />{copied ? t("editor.copied") : t("portfolio.share")}</button><button type="button" onClick={() => window.print()}><Icon name="download" size={13} />Print / PDF</button><a href={`/api/portfolios/${portfolio.slug}/export`} download><Icon name="download" size={13} />{t("portfolio.export")}</a><Link href={`/dashboard/${portfolio.slug}`} aria-label={t("library.edit")}><Icon name="edit" size={13} /></Link></div></footer>
+  </div></div>;
 }

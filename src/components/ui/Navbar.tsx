@@ -1,41 +1,16 @@
 "use client";
-
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useLocale } from "@/components/LocaleProvider";
 import { LOCALE_LABELS, LOCALES, type Locale } from "@/lib/i18n";
-
+import Icon from "./Icon";
 export default function Navbar() {
-  const { t, locale, setLocale } = useLocale();
-  return (
-    <header className="sticky top-0 z-40 border-b border-[#1f3a1f]/20 bg-[#1f3a1f]">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-        <Link href="/" className="text-lg font-bold tracking-tight text-[#f5f0e6]">
-          {t("brand.name")}
-        </Link>
-        <div className="flex items-center gap-2 text-sm">
-          <Link href="/" className="rounded-full px-3 py-1.5 text-[#f5f0e6] transition hover:bg-white/10">
-            {t("nav.home")}
-          </Link>
-          <Link href="/p/demo-portfolio" className="hidden rounded-full px-3 py-1.5 text-[#f5f0e6] transition hover:bg-white/10 sm:inline">
-            {t("nav.demo")}
-          </Link>
-          <Link href="/create" className="rounded-full bg-[#f5f0e6] px-4 py-1.5 font-medium text-[#1f3a1f] transition hover:bg-white">
-            {t("nav.create")}
-          </Link>
-          <select
-            aria-label={t("language.label")}
-            value={locale}
-            onChange={(e) => setLocale(e.target.value as Locale)}
-            className="rounded-full border border-white/20 bg-white/10 px-2 py-1.5 text-xs text-[#f5f0e6] focus:outline-none"
-          >
-            {LOCALES.map((l) => (
-              <option key={l} value={l} className="text-[#1a1a1a]">
-                {LOCALE_LABELS[l]}
-              </option>
-            ))}
-          </select>
-        </div>
-      </nav>
-    </header>
-  );
+  const { locale, setLocale, t } = useLocale();
+  const path = usePathname();
+  if (path.startsWith("/p/")) return null;
+  return <header className="site-header"><nav className="site-nav container" aria-label="Main navigation">
+    <Link href="/" className="brand"><span className="brand-mark"><Icon name="spark" size={22} /></span><span>Portfolio<span className="brand-light"> Generator</span><span className="brand-period">.</span></span></Link>
+    <div className="nav-middle"><Link href="/#templates">{t("nav.templates")}</Link><Link href="/#how-it-works">{t("nav.how")}</Link></div>
+    <div className="nav-actions"><Link className={`nav-library ${path.startsWith("/dashboard") ? "active" : ""}`} href="/dashboard"><Icon name="folder" size={16} /><span>{t("nav.portfolios")}</span></Link><select aria-label={t("language.label")} value={locale} onChange={e => setLocale(e.target.value as Locale)} className="locale-select">{LOCALES.map(l => <option key={l} value={l}>{LOCALE_LABELS[l]}</option>)}</select><Link href="/create" className="button button-small">{t("nav.create")}<Icon name="plus" size={16} /></Link></div>
+  </nav></header>;
 }

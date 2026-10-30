@@ -1,68 +1,26 @@
 "use client";
-
 import Link from "next/link";
+import { useState } from "react";
 import { useT } from "@/components/LocaleProvider";
+import Icon, { type IconName } from "@/components/ui/Icon";
+import PortfolioPreview from "@/components/preview/PortfolioPreview";
+import { demoPortfolio } from "@/lib/demo";
+import { THEMES, type Theme } from "@/lib/validation/portfolio.schema";
 
 export default function Home() {
   const t = useT();
-  return (
-    <div className="relative min-h-screen overflow-hidden text-[#1a1a1a]">
-      {/* Decorative background blobs */}
-      <div className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-[#1f3a1f]/10 blur-3xl" />
-      <div className="pointer-events-none absolute top-40 -right-32 h-96 w-96 rounded-full bg-[#2d5a27]/10 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-[#c9d6c9]/40 blur-3xl" />
-
-      <main className="relative mx-auto max-w-6xl px-6">
-        <section className="py-24 text-center sm:py-32">
-          <p className="mb-5 inline-block rounded-full border border-[#1f3a1f]/30 bg-white/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#1f3a1f] shadow-sm backdrop-blur">
-            {t("landing.badge")}
-          </p>
-          <h1 className="mx-auto max-w-4xl text-6xl font-black leading-[1.02] tracking-tight sm:text-8xl">
-            {t("landing.title")}
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5a5a5a]">
-            {t("landing.subtitle")}
-          </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              href="/create"
-              className="group rounded-full bg-[#1f3a1f] px-8 py-4 text-base font-semibold text-[#f5f0e6] shadow-xl shadow-[#1f3a1f]/25 transition hover:bg-[#2d5a27] hover:shadow-2xl"
-            >
-              {t("landing.cta.primary")}{" "}
-              <span className="inline-block transition group-hover:translate-x-1">→</span>
-            </Link>
-            <Link
-              href="/p/demo-portfolio"
-              className="rounded-full border border-[#1f3a1f]/30 bg-white/70 px-8 py-4 text-base font-semibold text-[#1f3a1f] backdrop-blur transition hover:border-[#1f3a1f] hover:bg-white"
-            >
-              {t("landing.cta.secondary")}
-            </Link>
-          </div>
-        </section>
-
-        <section className="grid gap-6 py-10 sm:grid-cols-3">
-          {[
-            { title: t("landing.feature.form.title"), body: t("landing.feature.form.body"), icon: "📝" },
-            { title: t("landing.feature.hosted.title"), body: t("landing.feature.hosted.body"), icon: "🚀" },
-            { title: t("landing.feature.edit.title"), body: t("landing.feature.edit.body"), icon: "✏️" },
-          ].map((item) => (
-            <div
-              key={item.title}
-              className="group rounded-2xl border border-[#1f3a1f]/15 bg-white/70 p-7 backdrop-blur transition hover:-translate-y-1 hover:border-[#1f3a1f]/40 hover:shadow-lg"
-            >
-              <div className="mb-3 text-3xl">{item.icon}</div>
-              <h3 className="text-lg font-bold text-[#1f3a1f]">{item.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-[#5a5a5a]">{item.body}</p>
-            </div>
-          ))}
-        </section>
-
-        <section className="py-12 text-center">
-          <div className="mx-auto max-w-xl rounded-2xl border border-[#1f3a1f]/15 bg-white/70 p-6 text-sm text-[#5a5a5a] backdrop-blur">
-            {t("landing.demo.note").replace("{key}", "demo-key-123")}
-          </div>
-        </section>
-      </main>
-    </div>
-  );
+  const [theme, setTheme] = useState<Theme>("minimal");
+  return <div className="home">
+    <section className="hero container">
+      <div className="hero-copy"><div className="eyebrow"><span className="orange-dot" /> {t("home.eyebrow")}</div><h1>{t("home.title1")}<br />{t("home.title2")}<br /><em>{t("home.title3")}</em></h1><p className="hero-description">{t("home.description")}</p><div className="hero-actions"><Link href="/create" className="button">{t("home.cta")}<Icon name="arrow" size={18} /></Link><Link href="/p/demo-portfolio" className="text-link">{t("home.demo")}<Icon name="external" size={15} /></Link></div><div className="hero-reassurance"><span><Icon name="check" size={14} />{t("home.noCode")}</span><span><Icon name="check" size={14} />{t("home.noSignup")}</span><span><Icon name="check" size={14} />{t("home.yours")}</span></div></div>
+      <div className="hero-visual"><div className="hero-grid" /><div className="preview-caption"><Icon name="spark" size={15} /> A SMALL PREVIEW. A BIG POSSIBILITY.</div><PortfolioPreview portfolio={{ ...demoPortfolio, theme }} browser /><div className="preview-floating"><span className="floating-icon"><Icon name="check" size={17} /></span><div><strong>Looks like you. Feels like you.</strong><span>Your story, beautifully put together.</span></div></div><div className="hero-theme-picker"><span>Make it yours</span><div role="group" aria-label="Preview theme">{THEMES.map(item => <button key={item} onClick={() => setTheme(item)} className={`theme-dot theme-${item} ${theme === item ? "selected" : ""}`} aria-label={`${item} preview`} aria-pressed={theme === item} />)}</div></div></div>
+    </section>
+    <section className="benefit-strip container" aria-label="Features">{([
+      ["layout", "home.feature1", "home.feature1body"], ["globe", "home.feature2", "home.feature2body"], ["edit", "home.feature3", "home.feature3body"],
+    ] as [IconName, string, string][]).map(([icon, title, body]) => <div key={icon}><span className="benefit-icon"><Icon name={icon} size={22} /></span><div><h2>{t(title)}</h2><p>{t(body)}</p></div></div>)}</section>
+    <section id="templates" className="template-section container"><div className="section-heading"><div><span className="eyebrow">{t("home.templatesEyebrow")}</span><h2>{t("home.templatesTitle")} <em>{t("home.templatesAccent")}</em></h2></div><p>{t("home.templatesDescription")}</p></div><div className="template-grid">{THEMES.map((item, i) => <Link href={`/create?theme=${item}`} className={`template-card template-${item}`} key={item}><div className="template-image"><PortfolioPreview compact portfolio={{ ...demoPortfolio, theme: item }} />{i === 0 && <span className="template-badge">THE EVERYDAY FAVORITE</span>}</div><div className="template-info"><div><h3>{t(`wizard.review.theme.${item}`)}<span>0{i + 1}</span></h3><p>{t(`home.theme.${item}`)}</p></div><span className="template-arrow"><Icon name="arrow" size={19} /></span></div></Link>)}</div><p className="template-note"><Icon name="spark" size={13} /> {t("home.templatesNote")}</p></section>
+    <section id="how-it-works" className="how-section"><div className="container how-inner"><div><span className="eyebrow">{t("home.howEyebrow")}</span><h2>{t("home.howTitle")}<br /><em>{t("home.howAccent")}</em></h2><p>{t("home.howDescription")}</p><Link href="/create" className="text-link">{t("home.cta")}<Icon name="arrow" size={17} /></Link></div><div className="how-steps">{[1, 2, 3].map(i => <div key={i}><span>0{i}</span><div><h3>{t(`home.step${i}`)}</h3><p>{t(`home.step${i}body`)}</p></div></div>)}</div></div></section>
+    <section className="faq-section container"><div><span className="eyebrow">{t("home.faqEyebrow")}</span><h2>{t("home.faqTitle")}<em> {t("home.faqAccent")}</em></h2></div><div className="faq-list">{[1, 2, 3].map(i => <details key={i}><summary>{t(`home.question${i}`)}<Icon name="plus" size={18} /></summary><p>{t(`home.answer${i}`)}</p></details>)}</div></section>
+    <section className="closing-section container"><span className="closing-star"><Icon name="spark" size={44} /></span><div><span className="eyebrow">{t("home.closingEyebrow")}</span><h2>{t("home.closingTitle")} <em>{t("home.closingAccent")}</em></h2></div><Link href="/create" className="button button-cream">{t("home.cta")}<Icon name="arrow" size={18} /></Link></section>
+  </div>;
 }

@@ -1,39 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
 import { LocaleProvider } from "@/components/LocaleProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
+const geist = localFont({ src: "./fonts/Geist.woff2", variable: "--font-geist-sans", display: "swap", weight: "100 900" });
+const mono = localFont({ src: "./fonts/GeistMono.woff2", variable: "--font-geist-mono", display: "swap", weight: "100 900" });
 export const metadata: Metadata = {
-  title: "Portfolio Generator",
-  description:
-    "Turn a form into a live, hosted portfolio page. Built with Next.js and SQLite.",
+  title: { default: "Portfolio Generator — A home for your work", template: "%s | Portfolio Generator" },
+  description: "Your work deserves a place of its own. Create, customize, and share a beautiful portfolio. No coding required.",
 };
-
-export default function RootLayout({ children }: LayoutProps<"/">) {
-  return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-      <LocaleProvider>
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
-      </LocaleProvider>
-    </body>
-    </html>
-  );
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return <html lang="en" className={`${geist.variable} ${mono.variable}`}><body>
+    <LocaleProvider><a className="skip-link" href="#main-content">Skip to content</a><Navbar /><main id="main-content" className="app-main">{children}</main><Footer /></LocaleProvider>
+  </body></html>;
 }

@@ -1,72 +1,34 @@
 "use client";
-
-import * as React from "react";
 import { useEffect, useState } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-import { emptyPortfolio, portfolioInputSchema } from "@/lib/validation/portfolio.schema";
-import type { PortfolioInput } from "@/lib/validation/portfolio.schema";
+import { useFieldArray, useForm, type FieldPath } from "react-hook-form";
+import { emptyPortfolio, portfolioInputSchema, LIMITS, THEMES, type PortfolioInput, type Theme } from "@/lib/validation/portfolio.schema";
 import { useDraft, useDebouncedSave } from "@/hooks/useDraft";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui/FormControls";
 import { useT } from "@/components/LocaleProvider";
-import { RepeatableCard } from "@/components/form/RepeatableCard";
-import { TagInput } from "@/components/form/TagInput";
+import { RepeatableCard } from "./RepeatableCard";
+import { TagInput } from "./TagInput";
+import Icon, { type IconName } from "@/components/ui/Icon";
+import PortfolioPreview from "@/components/preview/PortfolioPreview";
+import { rememberPortfolio } from "@/lib/localPortfolios";
 
-// STEPS is built inside the component so labels come from i18n.
-
-type FormValues = PortfolioInput;
-
-type WizardProps = {
-  mode?: "create" | "edit";
-  initialValues?: PortfolioInput;
-  slug?: string;
-  editKey?: string;
-};
-
-export default function PortfolioWizard({
-  mode = "create",
-  initialValues,
-  slug,
-  editKey,
-}: WizardProps) {
-  const storageKey = mode === "edit" && slug ? `portfolio-draft-${slug}` : undefined;
-  const { hasDraft, load, save, clear } = useDraft<FormValues>(storageKey);
+type WizardProps = { mode?: "create" | "edit"; initialValues?: PortfolioInput; slug?: string; editKey?: string; defaultTheme?: Theme };
+const ROOTS = [["profile", "socials"], ["skills"], ["projects"], ["experience"], ["events"], ["awards"], []];
+const STEP_KEYS = ["profile", "skills", "projects", "experience", "events", "awards", "review"];
+const STEP_ICONS: IconName[] = ["edit", "spark", "folder", "layout", "globe", "spark", "check"];
+export default function PortfolioWizard({ mode = "create", initialValues, slug, editKey, defaultTheme = "minimal" }: WizardProps) {
   const t = useT();
-  const STEPS = [
-    t("wizard.step.profile"),
-    t("wizard.step.skills"),
-    t("wizard.step.projects"),
-    t("wizard.step.experience"),
-    t("wizard.step.events"),
-    t("wizard.step.awards"),
-    t("wizard.step.review"),
-  ] as const;
-  const router = useRouter();
-  const [redirectIn, setRedirectIn] = useState<number | null>(null);
-  const [draftBanner, setDraftBanner] = useState(hasDraft);
+  const form = useForm<PortfolioInput>({ defaultValues: initialValues ?? { ...emptyPortfolio, theme: defaultTheme }, shouldUnregister: false });
+  const { register, control, watch, setValue, getValues, formState: { errors }, clearErrors, setError: setFieldError } = form;
+  const values = watch();
+  const { hasDraft, load, save, clear } = useDraft<PortfolioInput>(mode === "edit" ? `portfolio-draft-${slug}` : undefined);
+  const { schedule, cancel } = useDebouncedSave(save);
+  const [draftResolved, setDraftResolved] = useState(false);
   const [step, setStep] = useState(0);
+  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
   const [result, setResult] = useState<{ slug: string; editKey: string } | null>(null);
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(portfolioInputSchema) as any,
-    defaultValues: initialValues ?? emptyPortfolio,
-    mode: "onBlur",
-  });
-
-  const { register, control, handleSubmit, watch, setValue, getValues, formState } = form;
-
-  // {t("create.draft.restore")} draft on mount if present (only once).
-  const [restored, setRestored] = useState(false);
-  if (hasDraft && !restored && typeof window !== "undefined") {
-    // defer to effect-like: do it lazily
-  }
-
-  // field arrays
   const socials = useFieldArray({ control, name: "socials" });
   const skills = useFieldArray({ control, name: "skills" });
   const projects = useFieldArray({ control, name: "projects" });
@@ -74,484 +36,84 @@ export default function PortfolioWizard({
   const events = useFieldArray({ control, name: "events" });
   const awards = useFieldArray({ control, name: "awards" });
 
-  const debouncedSave = useDebouncedSave<FormValues>(save);
-
-  // Auto-redirect to the generated portfolio shortly after success.
+  // Subscribe to actual edits, never the initial blank render or an unresolved saved draft.
   useEffect(() => {
-    if (!result) {
-      setRedirectIn(null);
-      return;
-    }
-    setRedirectIn(5);
-    const tick = setInterval(() => {
-      setRedirectIn((n) => {
-        if (n === null) return null;
-        if (n <= 1) {
-          clearInterval(tick);
-          router.push(`/p/${result.slug}`);
-          return 0;
-        }
-        return n - 1;
-      });
-    }, 1000);
-    return () => clearInterval(tick);
-  }, [result, router]);
+    const subscription = form.watch((data, info) => {
+      if (!info.name || result || (hasDraft && !draftResolved)) return;
+      setDraftResolved(true);
+      schedule(data as PortfolioInput);
+    });
+    return () => subscription.unsubscribe();
+  }, [form, hasDraft, draftResolved, result, schedule]);
 
-  // autosave on every change
-  const values = watch();
-
-  // Profile completeness score (personalization hint).
-  const completeness = (() => {
-    let score = 0;
-    let total = 0;
-    const p = values.profile ?? ({} as any);
-    const checks: Array<[unknown, number]> = [
-      [p.fullName, 10],
-      [p.headline, 10],
-      [p.bio, 10],
-      [p.location, 5],
-      [p.email, 5],
-      [p.avatarUrl, 5],
-      [(values.socials ?? []).length > 0, 5],
-      [(values.skills ?? []).length > 0, 10],
-      [(values.projects ?? []).length > 0, 15],
-      [(values.experience ?? []).length > 0, 15],
-      [(values.events ?? []).length > 0, 5],
-      [(values.awards ?? []).length > 0, 5],
-    ];
-    for (const [val, w] of checks) {
-      total += w;
-      if (val && (typeof val !== "string" || val.trim().length > 0)) score += w;
-    }
-    return total > 0 ? (score / total) * 100 : 0;
-  })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    debouncedSave(values);
-  }, [JSON.stringify(values)]);
-
-  // restore draft prompt handled by banner; apply on user choice
+  function errorAt(path: string): string | undefined {
+    let current: unknown = errors;
+    for (const key of path.split(".")) current = current && typeof current === "object" ? (current as Record<string, unknown>)[key] : undefined;
+    return current && typeof current === "object" && "message" in current ? String(current.message) : undefined;
+  }
+  function field(path: FieldPath<PortfolioInput>, label: string, options: { placeholder?: string; type?: string; hint?: string; area?: boolean; maxLength?: number; disabled?: boolean } = {}) {
+    return <Field label={label} error={errorAt(path)} hint={options.hint}>{options.area ? <Textarea {...register(path)} rows={4} maxLength={options.maxLength} placeholder={options.placeholder} /> : <Input {...register(path, options.type === "number" ? { valueAsNumber: true } : undefined)} type={options.type || "text"} min={options.type === "number" ? 1 : undefined} max={options.type === "number" ? 5 : undefined} maxLength={options.maxLength} placeholder={options.placeholder} disabled={options.disabled} />}</Field>;
+  }
   function restoreDraft() {
-    const d = load();
-    if (d) form.reset(d);
-    setDraftBanner(false);
+    cancel();
+    const draft = load();
+    if (draft && draft.profile && typeof draft.profile.fullName === "string" && typeof draft.profile.headline === "string" && typeof draft.profile.bio === "string" && [draft.socials, draft.skills, draft.projects, draft.experience, draft.events, draft.awards].every(a => Array.isArray(a) && a.every(item => item && typeof item === "object"))) {
+      form.reset({ ...emptyPortfolio, ...draft, profile: { ...emptyPortfolio.profile, ...draft.profile } }); setError("");
+    } else { clear(); setError(t("editor.invalidDraft")); }
+    setDraftResolved(true);
   }
-  function discardDraft() {
-    clear();
-    setDraftBanner(false);
+  function discardDraft() { cancel(); clear(); setDraftResolved(true); }
+  function validate(index?: number) {
+    clearErrors(); setError("");
+    const parsed = portfolioInputSchema.safeParse(getValues());
+    if (parsed.success) return parsed.data;
+    const issues = index === undefined ? parsed.error.issues : parsed.error.issues.filter(i => ROOTS[index].includes(String(i.path[0])));
+    if (!issues.length) return getValues();
+    for (const issue of issues) setFieldError(issue.path.join(".") as FieldPath<PortfolioInput>, { type: "validate", message: issue.message });
+    const first = issues[0];
+    if (index === undefined) setStep(Math.max(0, ROOTS.findIndex(r => r.includes(String(first.path[0])))));
+    setError(`${t("editor.checkFields")} ${first.path.join(" → ")}: ${first.message}`);
+    return null;
   }
-
-  async function onSubmit(data: FormValues) {
-    setSubmitting(true);
-    setError(null);
+  function goTo(index: number) { if (index < step || validate(step)) { setStep(index); setError(""); } }
+  async function publish() {
+    const data = validate(); if (!data) return;
+    setSubmitting(true); cancel();
     try {
-      if (mode === "edit" && slug && editKey) {
-        const res = await fetch(`/api/portfolios/${slug}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", "x-edit-key": editKey },
-          body: JSON.stringify(data),
-        });
-        const json = await res.json();
-        if (!res.ok || !json.ok) {
-          setError(json.error ?? t("dashboard.unlock.error"));
-          return;
-        }
-        clear();
-        setResult({ slug, editKey });
-      } else {
-        const res = await fetch("/api/portfolios", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
-        const json = await res.json();
-        if (!res.ok || !json.ok) {
-          setError(json.error ?? t("dashboard.unlock.error"));
-          return;
-        }
-        clear();
-        setResult({ slug: json.portfolio.slug, editKey: json.editKey });
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("dashboard.unlock.error"));
-    } finally {
-      setSubmitting(false);
-    }
+      const editing = mode === "edit" && slug && editKey;
+      const res = await fetch(editing ? `/api/portfolios/${slug}` : "/api/portfolios", { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json", ...(editing ? { "x-edit-key": editKey } : {}) }, body: JSON.stringify(data) });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || t("editor.saveError"));
+      clear();
+      rememberPortfolio({ slug: json.portfolio.slug, fullName: data.profile.fullName, headline: data.profile.headline, theme: data.theme, updatedAt: json.portfolio.updatedAt });
+      setResult({ slug: json.portfolio.slug, editKey: editing ? editKey : json.editKey });
+    } catch (e) { setError(e instanceof Error ? e.message : t("editor.saveError")); save(data); } finally { setSubmitting(false); }
   }
-
-  if (result) {
-    const isEdit = mode === "edit";
-    return (
-      <Card className="mx-auto max-w-xl text-center">
-        <h2 className="text-2xl font-bold text-emerald-600">
-          {isEdit ? t("wizard.success.updated") : t("wizard.success.title")}
-        </h2>
-        <p className="mt-2 text-slate-600 dark:text-slate-400">
-          {isEdit ? t("wizard.success.updatedSubtitle") : t("wizard.success.subtitle")}
-        </p>
-        <code className="mt-3 block rounded-lg bg-slate-100 px-3 py-2 text-sm dark:bg-slate-800">
-          /p/{result.slug}
-        </code>
-        <Link
-          href={`/p/${result.slug}`}
-          className="mt-4 inline-block rounded-full bg-[#1f3a1f] px-5 py-2 text-sm font-semibold text-white hover:bg-[#2d5a27]"
-        >
-          View my portfolio
-        </Link>
-        {!isEdit && (
-          <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-left text-sm dark:border-amber-700 dark:bg-amber-950">
-            <p className="font-semibold text-amber-800 dark:text-amber-200">
-              {t("wizard.success.key.title")}
-            </p>
-            <code className="mt-2 block break-all rounded bg-white px-3 py-2 font-mono text-xs dark:bg-slate-900">
-              {result.editKey}
-            </code>
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-              {t("wizard.success.key.hint").replace("{slug}", result.slug)}
-            </p>
-          </div>
-        )}
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href={`/p/${result.slug}`}
-            className="rounded-full bg-[#1f3a1f] px-5 py-2 text-sm font-semibold text-[#f5f0e6] hover:bg-[#2d5a27]"
-          >
-            {t("wizard.success.view")}
-          </Link>
-          {redirectIn !== null && redirectIn > 0 && (
-            <Button variant="ghost" onClick={() => setRedirectIn(null)}>
-              {t("wizard.success.stay").replace("{n}", String(redirectIn))}
-            </Button>
-          )}
-        </div>
-        <Button className="mt-4" variant="ghost" onClick={() => { setResult(null); form.reset(initialValues ?? emptyPortfolio); setStep(0); setRedirectIn(null); }}>
-          {isEdit ? t("wizard.success.keepEditing") : t("wizard.success.createAnother")}
-        </Button>
-      </Card>
-    );
+  async function copy(text: string) { try { await navigator.clipboard.writeText(text); setNotice(t("editor.copied")); } catch { setNotice(t("editor.copyFallback")); } }
+  function downloadAccess() {
+    if (!result) return;
+    const base = window.location.origin;
+    const blob = new Blob([`Portfolio Generator — your access details\n\nPortfolio: ${base}/p/${result.slug}\nEditor: ${base}/dashboard/${result.slug}\nEdit key: ${result.editKey}\n\nKeep this file private. The edit key is required to change your portfolio.\n`], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `${result.slug}-access.txt`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  const heading = <div className="page-heading"><div><span className="eyebrow"><Icon name="spark" size={13} />{t(mode === "edit" ? "editor.editEyebrow" : "editor.eyebrow")}</span><h1>{t(mode === "edit" ? "dashboard.title" : "create.title")}</h1><p>{t(mode === "edit" ? "dashboard.subtitle" : "create.subtitle")}</p></div><span className="saved-status"><Icon name="lock" size={13} />{t("editor.browserDraft")}</span></div>;
+  if (result) return <>{heading}<Card className="success-card"><div className="success-icon"><Icon name="check" size={25} /></div><h2>{t(mode === "edit" ? "wizard.success.updated" : "wizard.success.title")}</h2><p>{t("wizard.success.subtitle")}</p><div className="success-link"><code>/p/{result.slug}</code><button className="icon-button" onClick={() => copy(`${window.location.origin}/p/${result.slug}`)} aria-label="Copy portfolio link"><Icon name="copy" size={17} /></button></div>{mode === "create" && <div className="edit-key-box"><h3><Icon name="lock" size={15} />{t("wizard.success.key.title")}</h3><code>{result.editKey}</code><p>{t("wizard.success.key.hint").replace("{slug}", result.slug)}</p><div className="success-actions"><Button variant="secondary" onClick={() => copy(result.editKey)}><Icon name="copy" size={13} />{t("editor.copyKey")}</Button><Button variant="secondary" onClick={downloadAccess}><Icon name="download" size={13} />{t("editor.downloadAccess")}</Button></div></div>}<div className="success-actions"><Link href={`/p/${result.slug}`} className="button">{t("wizard.success.view")}<Icon name="external" size={14} /></Link><Link href={`/dashboard/${result.slug}`} className="button button-secondary">{t("editor.openEditor")}<Icon name="edit" size={14} /></Link></div><p className="copy-status" role="status">{notice}</p><Button variant="ghost" onClick={() => { setResult(null); setStep(0); if (mode === "create") { form.reset({ ...emptyPortfolio, theme: defaultTheme }); setDraftResolved(true); } }}>{t(mode === "edit" ? "wizard.success.keepEditing" : "wizard.success.createAnother")}</Button></Card></>;
 
-  const profileErrors = formState.errors.profile;
-
-  return (
-    <div className="mx-auto max-w-3xl">
-      {draftBanner && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#1f3a1f]/30 bg-[#e6efe6] px-4 py-3 text-sm dark:border-[#1f3a1f] dark:bg-[#0f1f0f]">
-          <span>{t("create.draft.banner")}</span>
-          <div className="flex gap-2">
-            <Button variant="primary" onClick={restoreDraft}>{t("create.draft.restore")}</Button>
-            <Button variant="ghost" onClick={discardDraft}>{t("create.draft.discard")}</Button>
-          </div>
-        </div>
-      )}
-
-      {/* Stepper */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        {STEPS.map((s, i) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setStep(i)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-              i === step
-                ? "bg-[#1f3a1f] text-[#f5f0e6]"
-                : i < step
-                ? "bg-[#e6efe6] text-[#1f3a1f] dark:bg-[#1f3a1f] dark:text-[#f5f0e6]"
-                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-            }`}
-          >
-            {i + 1}. {s}
-          </button>
-        ))}
-      </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {step === 0 && (
-          <Card>
-            <h2 className="mb-4 text-xl font-bold">{t("wizard.profile.heading")}</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t("wizard.profile.fullName")} error={profileErrors?.fullName?.message}>
-                <Input {...register("profile.fullName")} placeholder="Ada Lovelace" />
-              </Field>
-              <Field label={t("wizard.profile.headline")} error={profileErrors?.headline?.message} hint="One line about you.">
-                <Input {...register("profile.headline")} placeholder="Frontend developer" />
-              </Field>
-            </div>
-            <div className="mt-4">
-              <Field label={t("wizard.profile.bio")} error={profileErrors?.bio?.message}>
-                <Textarea {...register("profile.bio")} rows={4} placeholder="Tell your story..." />
-              </Field>
-            </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label={t("wizard.profile.location")}>
-                <Input {...register("profile.location")} placeholder="Tirana, Albania" />
-              </Field>
-              <Field label={t("wizard.profile.email")}>
-                <Input {...register("profile.email")} placeholder="you@example.com" />
-              </Field>
-            </div>
-            <div className="mt-4">
-              <Field label={t("wizard.profile.avatarUrl")} hint="Link to a profile picture.">
-                <Input {...register("profile.avatarUrl")} placeholder="https://..." />
-              </Field>
-            </div>
-
-            <h3 className="mb-2 mt-6 text-sm font-semibold text-slate-700 dark:text-slate-200">Social links</h3>
-            <div className="space-y-3">
-              {socials.fields.map((f, i) => (
-                <div key={f.id} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
-                  <Input {...register(`socials.${i}.label` as const)} placeholder="GitHub" />
-                  <Input {...register(`socials.${i}.url` as const)} placeholder="https://github.com/you" />
-                  <Button type="button" variant="danger" onClick={() => socials.remove(i)}>Remove</Button>
-                </div>
-              ))}
-              <Button type="button" variant="secondary" onClick={() => socials.append({ label: "", url: "" })}>
-                + Add social link
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {step === 1 && (
-          <Card>
-            <h2 className="mb-4 text-xl font-bold">{t("wizard.skills.heading")}</h2>
-            <div className="space-y-3">
-              {skills.fields.map((f, i) => (
-                <div key={f.id} className="grid gap-2 sm:grid-cols-[2fr_1fr_1fr_auto]">
-                  <Input {...register(`skills.${i}.name` as const)} placeholder="TypeScript" />
-                  <Input type="number" min={1} max={5} {...register(`skills.${i}.level` as const, { valueAsNumber: true })} placeholder="Level 1-5" />
-                  <Input {...register(`skills.${i}.category` as const)} placeholder="Languages" />
-                  <Button type="button" variant="danger" onClick={() => skills.remove(i)}>Remove</Button>
-                </div>
-              ))}
-              <Button type="button" variant="secondary" onClick={() => skills.append({ name: "", level: 3, category: "" })}>
-                + Add skill
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {step === 2 && (
-          <Card>
-            <h2 className="mb-4 text-xl font-bold">{t("wizard.projects.heading")}</h2>
-            <div className="space-y-4">
-              {projects.fields.map((f, i) => (
-                <RepeatableCard key={f.id} title="Project" index={i} onRemove={() => projects.remove(i)}>
-                  <Field label="Title">
-                    <Input {...register(`projects.${i}.title` as const)} />
-                  </Field>
-                  <Field label="Description">
-                    <Textarea {...register(`projects.${i}.description` as const)} rows={3} />
-                  </Field>
-                  <Field label="Tech tags">
-                    <TagInput
-                      value={watch(`projects.${i}.techTags`) ?? []}
-                      onChange={(next) => setValue(`projects.${i}.techTags`, next)}
-                    />
-                  </Field>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Repo URL">
-                      <Input {...register(`projects.${i}.repoUrl` as const)} placeholder="https://github.com/..." />
-                    </Field>
-                    <Field label="Live URL">
-                      <Input {...register(`projects.${i}.liveUrl` as const)} placeholder="https://..." />
-                    </Field>
-                  </div>
-                  <Field label="Image URL">
-                    <Input {...register(`projects.${i}.imageUrl` as const)} placeholder="https://..." />
-                  </Field>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" {...register(`projects.${i}.featured` as const)} />
-                    Featured project
-                  </label>
-                </RepeatableCard>
-              ))}
-              <Button type="button" variant="secondary" onClick={() => projects.append({ title: "", description: "", techTags: [], repoUrl: "", liveUrl: "", imageUrl: "", featured: false })}>
-                + Add project
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {step === 3 && (
-          <Card>
-            <h2 className="mb-4 text-xl font-bold">{t("wizard.experience.heading")}</h2>
-            <div className="space-y-4">
-              {experience.fields.map((f, i) => (
-                <RepeatableCard key={f.id} title="Job" index={i} onRemove={() => experience.remove(i)}>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Company">
-                      <Input {...register(`experience.${i}.company` as const)} />
-                    </Field>
-                    <Field label="Role">
-                      <Input {...register(`experience.${i}.role` as const)} />
-                    </Field>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Start (YYYY-MM)">
-                      <Input {...register(`experience.${i}.startDate` as const)} placeholder="2024-06" />
-                    </Field>
-                    <Field label="End (YYYY-MM)" hint="Leave empty if current.">
-                      <Input {...register(`experience.${i}.endDate` as const)} placeholder="2025-01" />
-                    </Field>
-                  </div>
-                  <Field label={t("wizard.profile.location")}>
-                    <Input {...register(`experience.${i}.location` as const)} />
-                  </Field>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" {...register(`experience.${i}.current` as const)} />
-                    I currently work here
-                  </label>
-                  <Field label="Highlights (one per line)">
-                    <Textarea
-                      rows={3}
-                      defaultValue={(watch(`experience.${i}.highlights`) ?? []).join("\n")}
-                      onBlur={(e) =>
-                        setValue(
-                          `experience.${i}.highlights`,
-                          e.target.value.split("\n").map((x) => x.trim()).filter(Boolean),
-                        )
-                      }
-                    />
-                  </Field>
-                </RepeatableCard>
-              ))}
-              <Button type="button" variant="secondary" onClick={() => experience.append({ company: "", role: "", startDate: "", endDate: "", current: false, location: "", highlights: [] })}>
-                + Add job
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {step === 4 && (
-          <Card>
-            <h2 className="mb-4 text-xl font-bold">{t("wizard.events.heading")}</h2>
-            <p className="mb-4 text-sm text-slate-500">Meetups, conferences, hackathons you attended or spoke at.</p>
-            <div className="space-y-4">
-              {events.fields.map((f, i) => (
-                <RepeatableCard key={f.id} title="Event" index={i} onRemove={() => events.remove(i)}>
-                  <Field label="Event name">
-                    <Input {...register(`events.${i}.title` as const)} />
-                  </Field>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Your role">
-                      <Input {...register(`events.${i}.role` as const)} placeholder="Attendee / Speaker" />
-                    </Field>
-                    <Field label="Date">
-                      <Input {...register(`events.${i}.date` as const)} placeholder="2026-10" />
-                    </Field>
-                  </div>
-                  <Field label="Description">
-                    <Textarea {...register(`events.${i}.description` as const)} rows={2} />
-                  </Field>
-                  <Field label="Link">
-                    <Input {...register(`events.${i}.url` as const)} placeholder="https://..." />
-                  </Field>
-                </RepeatableCard>
-              ))}
-              <Button type="button" variant="secondary" onClick={() => events.append({ title: "", role: "", date: "", description: "", url: "" })}>
-                + Add event
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {step === 5 && (
-          <Card>
-            <h2 className="mb-4 text-xl font-bold">{t("wizard.awards.heading")}</h2>
-            <div className="space-y-4">
-              {awards.fields.map((f, i) => (
-                <RepeatableCard key={f.id} title="Award" index={i} onRemove={() => awards.remove(i)}>
-                  <Field label="Title">
-                    <Input {...register(`awards.${i}.title` as const)} />
-                  </Field>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Issuer / Organizer">
-                      <Input {...register(`awards.${i}.issuer` as const)} />
-                    </Field>
-                    <Field label="Date">
-                      <Input {...register(`awards.${i}.date` as const)} placeholder="2026-05" />
-                    </Field>
-                  </div>
-                  <Field label="Result">
-                    <Input {...register(`awards.${i}.result` as const)} placeholder="1st place" />
-                  </Field>
-                  <Field label="Description">
-                    <Textarea {...register(`awards.${i}.description` as const)} rows={2} />
-                  </Field>
-                </RepeatableCard>
-              ))}
-              <Button type="button" variant="secondary" onClick={() => awards.append({ title: "", issuer: "", date: "", result: "", description: "" })}>
-                + Add award
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {step === 6 && (
-          <Card>
-            <h2 className="mb-4 text-xl font-bold">{t("wizard.review.heading")}</h2>
-            <div className="mb-4">
-              <div className="mb-1 flex justify-between text-xs text-[#5a5a5a]">
-                <span>Profile completeness</span>
-                <span>{Math.round(completeness)}%</span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-[#e6efe6]">
-                <div
-                  className="h-full rounded-full bg-[#1f3a1f] transition-all"
-                  style={{ width: `${completeness}%` }}
-                />
-              </div>
-            </div>
-            <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
-              Check everything looks right, then submit. You can jump back to any step using the pills above.
-            </p>
-            <div className="space-y-2 text-sm">
-              <div><span className="font-semibold">{t("wizard.review.name")}:</span> {watch("profile.fullName") || "—"}</div>
-              <div><span className="font-semibold">{t("wizard.review.headline")}:</span> {watch("profile.headline") || "—"}</div>
-              <div><span className="font-semibold">{t("wizard.review.skills")}:</span> {watch("skills")?.length ?? 0}</div>
-              <div><span className="font-semibold">{t("wizard.review.projects")}:</span> {watch("projects")?.length ?? 0}</div>
-              <div><span className="font-semibold">{t("wizard.review.experience")}:</span> {watch("experience")?.length ?? 0}</div>
-              <div><span className="font-semibold">{t("wizard.review.events")}:</span> {watch("events")?.length ?? 0}</div>
-              <div><span className="font-semibold">{t("wizard.review.awards")}:</span> {watch("awards")?.length ?? 0}</div>
-              <div><span className="font-semibold">{t("wizard.review.theme")}:</span> {watch("theme")}</div>
-            </div>
-            <div className="mt-4">
-              <Field label="Theme">
-                <select
-                  {...register("theme")}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
-                >
-                  <option value="minimal">Minimal</option>
-                  <option value="dark">Dark</option>
-                  <option value="playful">Playful</option>
-                </select>
-              </Field>
-            </div>
-            {error && (
-              <div className="mt-4 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200">
-                {error}
-              </div>
-            )}
-          </Card>
-        )}
-
-        <div className="flex items-center justify-between">
-          <Button type="button" variant="secondary" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
-            {t("wizard.review.back")}
-          </Button>
-          {step < STEPS.length - 1 ? (
-            <Button type="button" onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}>
-              {t("wizard.review.next")}
-            </Button>
-          ) : (
-            <Button type="submit" disabled={submitting}>
-              {submitting ? t("wizard.review.submitting") : t("wizard.review.submit")}
-            </Button>
-          )}
-        </div>
-      </form>
+  const isEmpty = [false, !skills.fields.length, !projects.fields.length, !experience.fields.length, !events.fields.length, !awards.fields.length, false][step];
+  return <>{heading}{hasDraft && !draftResolved && <div className="draft-banner" role="status"><span>{t("create.draft.banner")}</span><div><Button onClick={restoreDraft}>{t("create.draft.restore")}</Button><Button variant="ghost" onClick={discardDraft}>{t("create.draft.discard")}</Button></div></div>}
+    <div className="wizard-layout"><aside className="wizard-sidebar"><p className="eyebrow">{t("editor.yourPortfolio")}</p><nav className="wizard-steps" aria-label="Portfolio steps">{STEP_KEYS.map((s, i) => <button key={s} type="button" onClick={() => goTo(i)} className={`wizard-step ${step === i ? "active" : ""} ${i < step ? "complete" : ""}`} aria-current={step === i ? "step" : undefined}><span>{i < step ? <Icon name="check" size={11} /> : i + 1}</span>{t(`wizard.step.${s}`)}</button>)}</nav><div className="sidebar-note"><Icon name="spark" size={19} /><strong>{t("editor.takeYourTime")}</strong>{t("editor.draftNote")}</div></aside>
+      <div className="wizard-center"><form onSubmit={e => { e.preventDefault(); if (step === 6) void publish(); else goTo(step + 1); }} noValidate><div className="wizard-card"><p className="step-counter">{t("editor.step")} {String(step + 1).padStart(2, "0")} / 07</p><h2>{t(`wizard.${STEP_KEYS[step]}.heading`)}</h2><p className="step-description">{t(`editor.description.${STEP_KEYS[step]}`)}</p>
+        {isEmpty && <div className="empty-section"><Icon name={STEP_ICONS[step]} size={25} /><h3>{t(`editor.empty.${STEP_KEYS[step]}`)}</h3><p>{t("editor.optionalSection")}</p></div>}
+        {step === 0 && <div className="form-stack"><div className="field-grid">{field("profile.fullName", t("wizard.profile.fullName"), { placeholder: "Ada Lovelace", maxLength: 80 })}{field("profile.headline", t("wizard.profile.headline"), { placeholder: t("wizard.profile.headline.placeholder"), maxLength: 120 })}</div>{field("profile.bio", t("wizard.profile.bio"), { area: true, placeholder: t("wizard.profile.bio.placeholder"), maxLength: LIMITS.bioMax, hint: `${values.profile.bio.length} / ${LIMITS.bioMax}` })}<div className="field-grid">{field("profile.location", t("wizard.profile.location"), { placeholder: "Tirana, Albania", maxLength: 80 })}{field("profile.email", t("wizard.profile.email"), { placeholder: "you@example.com", type: "email" })}</div>{field("profile.avatarUrl", t("wizard.profile.avatarUrl"), { placeholder: "https://...", type: "url", hint: t("wizard.profile.avatarUrl.hint") })}<h3 className="form-subheading">{t("wizard.profile.socials.heading")}<span className="optional-label">{t("editor.optional")}</span></h3>{socials.fields.map((s, i) => <RepeatableCard key={s.id} title={t("wizard.profile.socials.heading")} index={i} onRemove={() => socials.remove(i)}><div className="field-grid">{field(`socials.${i}.label`, t("editor.label"), { placeholder: "GitHub" })}{field(`socials.${i}.url`, t("editor.url"), { placeholder: "https://github.com/you", type: "url" })}</div></RepeatableCard>)}<Button variant="secondary" disabled={socials.fields.length >= LIMITS.socialsMax} onClick={() => socials.append({ label: "", url: "" })}>{t("wizard.profile.socials.add")}</Button></div>}
+        {step === 1 && <div className="form-stack">{skills.fields.map((s, i) => <RepeatableCard key={s.id} title={t("wizard.step.skills")} index={i} onRemove={() => skills.remove(i)}>{field(`skills.${i}.name`, t("editor.skillName"), { placeholder: "TypeScript", maxLength: 40 })}<div className="field-grid">{field(`skills.${i}.level`, t("editor.skillLevel"), { type: "number", hint: t("editor.skillLevelHint") })}{field(`skills.${i}.category`, t("editor.category"), { placeholder: "Frontend", maxLength: 30 })}</div></RepeatableCard>)}<Button variant="secondary" disabled={skills.fields.length >= LIMITS.skillsMax} onClick={() => skills.append({ name: "", level: 3, category: "" })}>{t("wizard.skills.add")}</Button></div>}
+        {step === 2 && <div className="form-stack">{projects.fields.map((p, i) => <RepeatableCard key={p.id} title={t("wizard.projects.repeatable")} index={i} onRemove={() => projects.remove(i)}>{field(`projects.${i}.title`, t("wizard.projects.title"), { maxLength: 80 })}{field(`projects.${i}.description`, t("wizard.projects.description"), { area: true, maxLength: 600 })}<Field label={t("wizard.projects.techTags")} error={errorAt(`projects.${i}.techTags`)}><TagInput value={values.projects[i]?.techTags || []} onChange={tags => setValue(`projects.${i}.techTags`, tags, { shouldDirty: true })} /></Field><div className="field-grid">{field(`projects.${i}.repoUrl`, t("wizard.projects.repoUrl"), { type: "url", placeholder: "https://github.com/..." })}{field(`projects.${i}.liveUrl`, t("wizard.projects.liveUrl"), { type: "url", placeholder: "https://..." })}</div>{field(`projects.${i}.imageUrl`, t("wizard.projects.imageUrl"), { type: "url", placeholder: "https://..." })}<label className="checkbox-field"><input type="checkbox" {...register(`projects.${i}.featured`)} />{t("wizard.projects.featured")}</label></RepeatableCard>)}<Button variant="secondary" disabled={projects.fields.length >= LIMITS.projectsMax} onClick={() => projects.append({ title: "", description: "", techTags: [], repoUrl: "", liveUrl: "", imageUrl: "", featured: false })}>{t("wizard.projects.add")}</Button></div>}
+        {step === 3 && <div className="form-stack">{experience.fields.map((x, i) => <RepeatableCard key={x.id} title={t("wizard.experience.repeatable")} index={i} onRemove={() => experience.remove(i)}><div className="field-grid">{field(`experience.${i}.company`, t("wizard.experience.company"), { maxLength: 80 })}{field(`experience.${i}.role`, t("wizard.experience.role"), { maxLength: 80 })}</div><div className="field-grid">{field(`experience.${i}.startDate`, t("wizard.experience.startDate"), { type: "month" })}{field(`experience.${i}.endDate`, t("wizard.experience.endDate"), { type: "month", disabled: values.experience[i]?.current })}</div><label className="checkbox-field"><input type="checkbox" {...register(`experience.${i}.current`)} />{t("wizard.experience.current")}</label>{field(`experience.${i}.location`, t("wizard.experience.location"))}<Field label={t("wizard.experience.highlights")} error={errorAt(`experience.${i}.highlights`)}><Textarea rows={3} defaultValue={values.experience[i]?.highlights.join("\n")} onChange={e => setValue(`experience.${i}.highlights`, e.target.value.split("\n").map(v => v.trim()).filter(Boolean), { shouldDirty: true })} /></Field></RepeatableCard>)}<Button variant="secondary" disabled={experience.fields.length >= LIMITS.experienceMax} onClick={() => experience.append({ company: "", role: "", startDate: "", endDate: "", current: false, location: "", highlights: [] })}>{t("wizard.experience.add")}</Button></div>}
+        {step === 4 && <div className="form-stack">{events.fields.map((v, i) => <RepeatableCard key={v.id} title={t("wizard.events.repeatable")} index={i} onRemove={() => events.remove(i)}>{field(`events.${i}.title`, t("wizard.events.title"), { maxLength: 120 })}<div className="field-grid">{field(`events.${i}.role`, t("wizard.events.role"), { placeholder: t("wizard.events.role.placeholder") })}{field(`events.${i}.date`, t("wizard.events.date"), { type: "month" })}</div>{field(`events.${i}.description`, t("wizard.events.description"), { area: true, maxLength: 400 })}{field(`events.${i}.url`, t("wizard.events.url"), { type: "url", placeholder: "https://..." })}</RepeatableCard>)}<Button variant="secondary" disabled={events.fields.length >= LIMITS.eventsMax} onClick={() => events.append({ title: "", role: "", date: "", description: "", url: "" })}>{t("wizard.events.add")}</Button></div>}
+        {step === 5 && <div className="form-stack">{awards.fields.map((a, i) => <RepeatableCard key={a.id} title={t("wizard.awards.repeatable")} index={i} onRemove={() => awards.remove(i)}>{field(`awards.${i}.title`, t("wizard.awards.title"), { maxLength: 120 })}<div className="field-grid">{field(`awards.${i}.issuer`, t("wizard.awards.issuer"))}{field(`awards.${i}.date`, t("wizard.awards.date"), { type: "month" })}</div>{field(`awards.${i}.result`, t("wizard.awards.result"), { placeholder: t("wizard.awards.result.placeholder") })}{field(`awards.${i}.description`, t("wizard.awards.description"), { area: true, maxLength: 400 })}</RepeatableCard>)}<Button variant="secondary" disabled={awards.fields.length >= LIMITS.awardsMax} onClick={() => awards.append({ title: "", issuer: "", date: "", result: "", description: "" })}>{t("wizard.awards.add")}</Button></div>}
+        {step === 6 && <div className="form-stack"><div className="review-profile"><div className="review-avatar">{values.profile.fullName.split(" ").slice(0, 2).map(n => n[0]).join("") || "?"}</div><div><h3>{values.profile.fullName || "—"}</h3><p>{values.profile.headline || "—"}</p></div></div><dl className="review-summary">{["skills", "projects", "experience", "events", "awards"].map(s => <div key={s}><dt>{t(`wizard.review.${s}`)}</dt><dd>{(values[s as keyof PortfolioInput] as unknown[]).length}</dd></div>)}<div><dt>{t("wizard.review.theme")}</dt><dd>{t(`wizard.review.theme.${values.theme}`)}</dd></div></dl><p className="step-description">{t("editor.publishNote")}</p></div>}
+        {error && <div className="error-banner" role="alert">{error}</div>}
+      </div><div className="wizard-actions"><Button variant="secondary" disabled={step === 0 || submitting} onClick={() => goTo(step - 1)}><Icon name="arrow" size={14} className="back-arrow" />{t("wizard.review.back")}</Button><span>{step > 0 && step < 6 ? t("editor.optionalStep") : t("editor.madeByYou")}</span>{step < 6 ? <Button type="submit">{t("wizard.review.next")}<Icon name="arrow" size={14} /></Button> : <Button type="submit" disabled={submitting || (hasDraft && !draftResolved)}>{t(submitting ? "wizard.review.submitting" : "editor.publish")}<Icon name="globe" size={14} /></Button>}</div></form></div>
+      <aside className="wizard-preview-panel"><div className="preview-panel-header"><span><i className="live-dot" />{t("editor.livePreview")}</span><small>{t("editor.previewHint")}</small></div><PortfolioPreview portfolio={values} /><div className="preview-theme-options" role="group" aria-label={t("wizard.review.theme")}>{THEMES.map(theme => <button type="button" key={theme} aria-pressed={values.theme === theme} onClick={() => setValue("theme", theme, { shouldDirty: true })}><span className={`theme-dot theme-${theme}`} />{t(`wizard.review.theme.${theme}`)}</button>)}</div><p className="preview-footnote">{t("editor.themeNote")}</p></aside>
     </div>
-  );
+  </>;
 }
-

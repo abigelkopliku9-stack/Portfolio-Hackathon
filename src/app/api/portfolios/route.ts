@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
 import { createPortfolio } from "@/lib/db";
 import { jsonError, jsonOk } from "@/lib/api";

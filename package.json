@@ -7,8 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:seed": "tsx src/lib/db/seed.ts",
-    "typecheck": "tsc --noEmit"
+    "db:seed": "node --import tsx src/lib/db/seed.ts",
+    "typecheck": "next typegen && tsc --noEmit",
+    "predev": "npm run db:seed",
+    "prebuild": "npm run db:seed",
+    "prestart": "npm run db:seed",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",
@@ -19,6 +23,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^26.6.6",
     "@types/react": "^19",
@@ -28,5 +33,8 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22.13.0"
   }
 }

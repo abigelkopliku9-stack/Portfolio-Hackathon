@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { getPortfolioBySlug, incrementPortfolioViews } from "@/lib/db";
 import { PortfolioView } from "@/components/portfolio/PortfolioView";
 
+export const dynamic = "force-dynamic";
+
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -22,5 +24,6 @@ export default async function PortfolioPage({ params }: Props) {
   if (!portfolio) notFound();
   // Track view (fire-and-forget analytics).
   incrementPortfolioViews(slug);
+  portfolio.views += 1;
   return <PortfolioView portfolio={portfolio} />;
 }
