@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import { countPortfolios, getDb } from "@/lib/db";
 
-export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**

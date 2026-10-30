@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portfolio Generator
 
-## Getting Started
+A Next.js (App Router) app that turns a form into a live, hosted portfolio page.
+Built for a 24-hour hackathon (Idea #8).
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router, TypeScript, Tailwind CSS v4)
+- Node.js 26 (local install, no sudo) — `~/.local/opt/node`
+- SQLite via Node's built-in `node:sqlite` (zero native deps) — file at `data/portfolio.db`
+- Zod for validation (single source of truth)
+- react-hook-form for the create/edit form
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+export PATH="$HOME/.local/opt/node/bin:$PATH"
+npm install
+cp .env.example .env.local   # optional; defaults to data/portfolio.db
+npm run db:seed              # creates the demo portfolio
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script | What it does |
+|---|---|
+| `npm run dev` | Start the dev server (Turbopack) |
+| `npm run build` | Production build |
+| `npm run typecheck` | TypeScript check |
+| `npm run db:seed` | Seed `demo-portfolio` (idempotent) |
+| `npm run lint` | ESLint |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project layout
 
-## Learn More
+```
+src/
+├─ app/
+│  ├─ page.tsx                      # landing
+│  ├─ create/page.tsx               # create wizard
+│  ├─ dashboard/[slug]/page.tsx     # unlock + edit
+│  ├─ p/[slug]/page.tsx             # public portfolio
+│  └─ api/
+│     ├─ health/route.ts
+│     └─ portfolios/
+│        ├─ route.ts                # POST create
+│        └─ [slug]/
+│           ├─ route.ts             # GET / PUT / DELETE
+│           ├─ verify/route.ts      # edit-key check
+│           └─ export/route.ts      # download as HTML
+├─ components/
+│  ├─ ui/FormControls.tsx
+│  ├─ form/                         # wizard steps, RepeatableCard, TagInput
+│  └─ portfolio/                    # PortfolioView + CSS module (themes)
+├─ hooks/useDraft.ts                # localStorage autosave
+├─ lib/
+│  ├─ db/                           # client, schema, repo, seed
+│  ├─ validation/portfolio.schema.ts # Zod = single source of truth
+│  ├─ api.ts, rateLimit.ts, slug.ts, auth/editKey.ts, exportHtml.ts
+└─ types/portfolio.ts
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Data model (schema-driven)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+One portfolio is an aggregate: a `portfolios` row plus ordered child rows
+(`socials`, `skills`, `projects`, `experiences`, `events`, `awards`).
+The Zod schema in `src/lib/validation/portfolio.schema.ts` drives the form,
+the API validation, and the TypeScript types. Child arrays are stored as
+JSON only where they are never queried on their own (tech tags, highlights).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Edit protection
 
-## Deploy on Vercel
+Each portfolio gets a 24-char secret `editKey` at creation (shown once).
+Only its SHA-256 hash is stored. The dashboard unlocks with the key.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Themes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`minimal`, `dark`, `playful` — selected in the form and applied via
+`data-theme` on the portfolio shell (CSS variables).

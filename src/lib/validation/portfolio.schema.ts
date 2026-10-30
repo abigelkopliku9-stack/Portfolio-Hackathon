@@ -17,6 +17,8 @@ export const LIMITS = {
   techTagsMax: 10,
   highlightsMax: 5,
   bioMax: 1200,
+  eventsMax: 15,
+  awardsMax: 15,
 } as const;
 
 export const THEMES = ["minimal", "dark", "playful"] as const;
@@ -97,6 +99,22 @@ export const experienceSchema = z.object({
   highlights: z.array(requiredText(200)).max(LIMITS.highlightsMax).default([]),
 });
 
+export const eventSchema = z.object({
+  title: requiredText(120),
+  role: optionalText(60),
+  date: optionalText(40),
+  description: optionalText(400),
+  url: optionalUrl,
+});
+
+export const awardSchema = z.object({
+  title: requiredText(120),
+  issuer: optionalText(80),
+  date: optionalText(40),
+  result: optionalText(60),
+  description: optionalText(400),
+});
+
 export const profileSchema = z.object({
   fullName: requiredText(80),
   headline: requiredText(120),
@@ -112,6 +130,8 @@ export const portfolioInputSchema = z.object({
   skills: z.array(skillSchema).max(LIMITS.skillsMax).default([]),
   projects: z.array(projectSchema).max(LIMITS.projectsMax).default([]),
   experience: z.array(experienceSchema).max(LIMITS.experienceMax).default([]),
+  events: z.array(eventSchema).max(LIMITS.eventsMax).default([]),
+  awards: z.array(awardSchema).max(LIMITS.awardsMax).default([]),
   theme: z.enum(THEMES).default("minimal"),
   published: z.boolean().default(true),
 });
@@ -122,6 +142,8 @@ export type SocialLink = z.infer<typeof socialSchema>;
 export type Skill = z.infer<typeof skillSchema>;
 export type Project = z.infer<typeof projectSchema>;
 export type Experience = z.infer<typeof experienceSchema>;
+export type EventItem = z.infer<typeof eventSchema>;
+export type Award = z.infer<typeof awardSchema>;
 
 /** Starting state for a brand new portfolio in the form. */
 export const emptyPortfolio: PortfolioInput = {
@@ -137,6 +159,8 @@ export const emptyPortfolio: PortfolioInput = {
   skills: [],
   projects: [],
   experience: [],
+  events: [],
+  awards: [],
   theme: "minimal",
   published: true,
 };

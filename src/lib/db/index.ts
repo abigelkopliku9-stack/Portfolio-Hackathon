@@ -6,6 +6,7 @@ export {
   deletePortfolio,
   getEditKeyHash,
   getPortfolioById,
+  incrementPortfolioViews,
   getPortfolioBySlug,
   slugExists,
   updatePortfolio,

@@ -4,6 +4,8 @@ import type { DatabaseSync } from "node:sqlite";
 import { generateEditKey, hashEditKey } from "../auth/editKey";
 import { buildSlug, isReservedSlug } from "../slug";
 import type {
+  Award,
+  EventItem,
   Experience,
   PortfolioInput,
   Project,
@@ -22,6 +24,8 @@ import { getDb, transaction } from "./client";
 export type PortfolioRecord = PortfolioInput & {
   id: string;
   slug: string;
+  views: number;
+  lastViewedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -43,6 +47,8 @@ type PortfolioRow = {
   location: string;
   email: string;
   avatar_url: string;
+  views: number;
+  last_viewed_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -68,6 +74,22 @@ type ExperienceRow = {
   highlights: string;
 };
 
+type EventRow = {
+  title: string;
+  role: string;
+  date: string;
+  description: string;
+  url: string;
+};
+
+type AwardRow = {
+  title: string;
+  issuer: string;
+  date: string;
+  result: string;
+  description: string;
+};
+
 function parseStringArray(json: string): string[] {
   try {
     const parsed: unknown = JSON.parse(json);
@@ -84,6 +106,8 @@ function rowToRecord(
     skills: Skill[];
     projects: Project[];
     experience: Experience[];
+    events: EventItem[];
+    awards: Award[];
   },
 ): PortfolioRecord {
   return {
@@ -103,6 +127,10 @@ function rowToRecord(
     skills: children.skills,
     projects: children.projects,
     experience: children.experience,
+    events: children.events,
+    awards: children.awards,
+    views: row.views ?? 0,
+    lastViewedAt: row.last_viewed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -131,6 +159,20 @@ function loadChildren(db: DatabaseSync, portfolioId: string) {
     )
     .all(portfolioId) as unknown as ExperienceRow[];
 
+  const events = db
+    .prepare(
+      `SELECT title, role, date, description, url
+       FROM events WHERE portfolio_id = ? ORDER BY position`,
+    )
+    .all(portfolioId) as unknown as EventRow[];
+
+  const awards = db
+    .prepare(
+      `SELECT title, issuer, date, result, description
+       FROM awards WHERE portfolio_id = ? ORDER BY position`,
+    )
+    .all(portfolioId) as unknown as AwardRow[];
+
   return {
     socials: socials.map((s) => ({ label: s.label, url: s.url })),
     skills: skills.map((s) => ({ name: s.name, level: s.level, category: s.category })),
@@ -151,6 +193,20 @@ function loadChildren(db: DatabaseSync, portfolioId: string) {
       current: e.is_current === 1,
       location: e.location,
       highlights: parseStringArray(e.highlights),
+    })),
+    events: events.map((e) => ({
+      title: e.title,
+      role: e.role,
+      date: e.date,
+      description: e.description,
+      url: e.url,
+    })),
+    awards: awards.map((a) => ({
+      title: a.title,
+      issuer: a.issuer,
+      date: a.date,
+      result: a.result,
+      description: a.description,
     })),
   };
 }
@@ -205,10 +261,26 @@ function insertChildren(db: DatabaseSync, portfolioId: string, input: PortfolioI
       index,
     ),
   );
+
+  const event = db.prepare(
+    `INSERT INTO events (portfolio_id, title, role, date, description, url, position)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  );
+  input.events.forEach((item, index) =>
+    event.run(portfolioId, item.title, item.role, item.date, item.description, item.url, index),
+  );
+
+  const award = db.prepare(
+    `INSERT INTO awards (portfolio_id, title, issuer, date, result, description, position)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  );
+  input.awards.forEach((item, index) =>
+    award.run(portfolioId, item.title, item.issuer, item.date, item.result, item.description, index),
+  );
 }
 
 function deleteChildren(db: DatabaseSync, portfolioId: string): void {
-  for (const table of ["socials", "skills", "projects", "experiences"]) {
+  for (const table of ["socials", "skills", "projects", "experiences", "events", "awards"]) {
     db.prepare(`DELETE FROM ${table} WHERE portfolio_id = ?`).run(portfolioId);
   }
 }
@@ -354,4 +426,12 @@ export function countPortfolios(): number {
     total: number;
   };
   return row.total;
+}
+
+/** Bumps the view counter for a portfolio (fire-and-forget analytics). */
+export function incrementPortfolioViews(slug: string): void {
+  const db = getDb();
+  db.prepare(
+    "UPDATE portfolios SET views = views + 1, last_viewed_at = ? WHERE slug = ?",
+  ).run(new Date().toISOString(), slug);
 }

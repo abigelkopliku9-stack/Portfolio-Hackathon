@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS portfolios (
   location       TEXT NOT NULL DEFAULT '',
   email          TEXT NOT NULL DEFAULT '',
   avatar_url     TEXT NOT NULL DEFAULT '',
+  views          INTEGER NOT NULL DEFAULT 0,
+  last_viewed_at TEXT,
   created_at     TEXT NOT NULL,
   updated_at     TEXT NOT NULL
 );
@@ -71,8 +73,33 @@ CREATE TABLE IF NOT EXISTS experiences (
   position      INTEGER NOT NULL
 );
 
+
+CREATE TABLE IF NOT EXISTS events (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  portfolio_id  TEXT NOT NULL REFERENCES portfolios(id) ON DELETE CASCADE,
+  title         TEXT NOT NULL,
+  role          TEXT NOT NULL DEFAULT '',
+  date          TEXT NOT NULL DEFAULT '',
+  description   TEXT NOT NULL DEFAULT '',
+  url           TEXT NOT NULL DEFAULT '',
+  position      INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS awards (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  portfolio_id  TEXT NOT NULL REFERENCES portfolios(id) ON DELETE CASCADE,
+  title         TEXT NOT NULL,
+  issuer        TEXT NOT NULL DEFAULT '',
+  date          TEXT NOT NULL DEFAULT '',
+  result        TEXT NOT NULL DEFAULT '',
+  description   TEXT NOT NULL DEFAULT '',
+  position      INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_socials_portfolio     ON socials(portfolio_id, position);
 CREATE INDEX IF NOT EXISTS idx_skills_portfolio      ON skills(portfolio_id, position);
 CREATE INDEX IF NOT EXISTS idx_projects_portfolio    ON projects(portfolio_id, position);
 CREATE INDEX IF NOT EXISTS idx_experiences_portfolio ON experiences(portfolio_id, position);
+CREATE INDEX IF NOT EXISTS idx_events_portfolio       ON events(portfolio_id, position);
+CREATE INDEX IF NOT EXISTS idx_awards_portfolio       ON awards(portfolio_id, position);
 `;

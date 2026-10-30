@@ -37,6 +37,12 @@ export function getDb(): DatabaseSync {
   db.exec("PRAGMA busy_timeout = 5000;");
   db.exec(SCHEMA_SQL);
 
+  // Lightweight migration for existing databases.
+  const cols = db.prepare("PRAGMA table_info(portfolios)").all() as Array<{ name: string }>;
+  const names = new Set(cols.map((c) => c.name));
+  if (!names.has("views")) db.exec("ALTER TABLE portfolios ADD COLUMN views INTEGER NOT NULL DEFAULT 0;");
+  if (!names.has("last_viewed_at")) db.exec("ALTER TABLE portfolios ADD COLUMN last_viewed_at TEXT;");
+
   globalForDb.__portfolioDb = db;
   return db;
 }

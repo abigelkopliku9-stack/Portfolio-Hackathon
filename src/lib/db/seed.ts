@@ -75,7 +75,32 @@ const demo = portfolioInputSchema.parse({
       highlights: ["Ran 12 beginner JavaScript workshops for 200+ students."],
     },
   ],
-  theme: "dark",
+  events: [
+    {
+      title: "Hacktoberfest Kickoff Meetup",
+      role: "Attendee",
+      date: "2026-10",
+      description: "Met 40+ developers and joined a team for the 24h sprint.",
+      url: "",
+    },
+    {
+      title: "Women in Tech Tirana",
+      role: "Speaker",
+      date: "2026-09",
+      description: "Gave a 15-minute talk on building UIs with React.",
+      url: "https://example.com/talk",
+    },
+  ],
+  awards: [
+    {
+      title: "Best Beginner Project",
+      issuer: "Campus Tech Society",
+      date: "2026-05",
+      result: "1st place",
+      description: "Won with the Transit Heatmap project.",
+    },
+  ],
+  theme: "minimal",
   published: true,
 });
 
