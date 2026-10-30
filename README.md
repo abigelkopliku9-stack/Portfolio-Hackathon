@@ -11,7 +11,7 @@ Built for a 24-hour hackathon (Idea #8).
 - Zod for validation (single source of truth)
 - react-hook-form for the create/edit form
 
-## Quick start
+## Quick startt
 
 ```bash
 export PATH="$HOME/.local/opt/node/bin:$PATH"
