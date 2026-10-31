@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-export type IconName = "arrow" | "external" | "check" | "spark" | "layout" | "globe" | "edit" | "folder" | "plus" | "copy" | "download" | "lock" | "chevron" | "mail" | "pin";
+export type IconName = "arrow" | "external" | "check" | "spark" | "layout" | "globe" | "edit" | "folder" | "plus" | "copy" | "download" | "lock" | "chevron" | "mail" | "pin" | "image";
 const paths: Record<IconName, ReactNode> = {
   arrow: <path d="M4 12h16M13 5l7 7-7 7" />,
   external: <path d="M14 4h6v6M20 4 10 14M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5" />,
@@ -16,6 +16,7 @@ const paths: Record<IconName, ReactNode> = {
   chevron: <path d="m9 5 7 7-7 7" />,
   mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 6 9 7 9-7" /></>,
   pin: <><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z" /><circle cx="12" cy="10" r="2" /></>,
+  image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="m3 17 5.5-5 4.5 4 3-2.5L21 17" /></>,
 };
 export default function Icon({ name, size = 20, className = "", style }: { name: IconName; size?: number; className?: string; style?: CSSProperties }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className} style={style}>{paths[name]}</svg>;

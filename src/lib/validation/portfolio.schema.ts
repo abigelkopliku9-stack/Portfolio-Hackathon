@@ -21,7 +21,7 @@ export const LIMITS = {
   awardsMax: 15,
 } as const;
 
-export const THEMES = ["minimal", "dark", "playful"] as const;
+export const THEMES = ["minimal", "dark", "playful", "navy", "gradient"] as const;
 export type Theme = (typeof THEMES)[number];
 
 function isHttpUrl(value: string): boolean {
@@ -115,13 +115,24 @@ export const awardSchema = z.object({
   description: optionalText(400),
 });
 
+/** Like optionalUrl but also accepts self-hosted root-relative paths (uploads). */
+const optionalAvatar = z
+  .string()
+  .trim()
+  .max(2048)
+  .optional()
+  .default("")
+  .refine((value) => value === "" || value.startsWith("/") || isHttpUrl(value), {
+    message: "Enter a full http(s) URL",
+  });
+
 export const profileSchema = z.object({
   fullName: requiredText(80),
   headline: requiredText(120),
   bio: requiredText(LIMITS.bioMax),
   location: optionalText(80),
   email: optionalEmail,
-  avatarUrl: optionalUrl,
+  avatarUrl: optionalAvatar,
 });
 
 export const portfolioInputSchema = z.object({
