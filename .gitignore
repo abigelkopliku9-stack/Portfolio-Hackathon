@@ -48,3 +48,6 @@ next-env.d.ts
 
 # keep the documented env template
 !.env.example
+
+# Project-local browser used for designed PDF exports
+/.cache/
