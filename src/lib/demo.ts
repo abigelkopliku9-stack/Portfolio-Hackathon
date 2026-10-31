@@ -23,7 +23,7 @@ export const demoPortfolio = portfolioInputSchema.parse({
   ],
   projects: [
     {
-      title: "MyFolio",
+      title: "Myfolio Generator",
       description:
         "A form-to-website tool that turns a profile into a hosted portfolio page. Built in 24 hours with three teammates.",
       techTags: ["Next.js", "SQLite", "Tailwind"],

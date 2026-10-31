@@ -22,7 +22,7 @@ export function databasePath(): string {
   const configured = process.env.DATABASE_PATH?.trim();
   const value = configured && configured.length > 0 ? configured : DEFAULT_DATABASE_PATH;
   if (value === ":memory:" || value.startsWith("file:")) return value;
-  return isAbsolute(value) ? value : resolve(process.cwd(), value);
+  return isAbsolute(value) ? value : resolve(/* turbopackIgnore: true */ process.cwd(), value);
 }
 
 export function getDb(): DatabaseSync {

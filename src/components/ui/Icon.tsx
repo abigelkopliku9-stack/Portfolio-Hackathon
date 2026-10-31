@@ -1,6 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
-export type IconName = "arrow" | "external" | "check" | "spark" | "layout" | "globe" | "edit" | "folder" | "plus" | "copy" | "download" | "lock" | "chevron" | "mail" | "pin" | "image";
+export type IconName = "arrow" | "external" | "check" | "spark" | "layout" | "globe" | "edit" | "folder" | "plus" | "copy" | "download" | "lock" | "chevron" | "mail" | "pin" | "image" | "chat" | "close" | "search";
 const paths: Record<IconName, ReactNode> = {
+  chat: <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-1 2V11.5A8.5 8.5 0 0 1 11.5 3H13a8 8 0 0 1 8 8.5ZM7.5 10h9m-9 4h5" />,
+  close: <path d="m6 6 12 12M6 18 18 6" />,
+  search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></>,
   arrow: <path d="M4 12h16M13 5l7 7-7 7" />,
   external: <path d="M14 4h6v6M20 4 10 14M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5" />,
   check: <path d="m5 12 4 4L19 6" />,
