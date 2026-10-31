@@ -6,7 +6,7 @@ import { useT } from "@/components/LocaleProvider";
 import Icon from "@/components/ui/Icon";
 import BrandMark from "@/components/ui/BrandMark";
 import styles from "./help.module.css";
-const FAQS = ["start", "pdf", "theme", "edit", "photo", "share", "trouble"];
+const FAQS = ["start", "pdf", "card", "theme", "edit", "photo", "share", "trouble"];
 export default function HelpAssistant() {
   const t = useT(); const path = usePathname();
   const [open, setOpen] = useState(false); const [query, setQuery] = useState(""); const [expanded, setExpanded] = useState<string | null>(null);

@@ -1,5 +1,5 @@
 /**
- * SQLite schema for the Myfolio Generator.
+ * SQLite schema for the Myfolio.
  *
  * One portfolio is an aggregate: a parent row in `portfolios` plus ordered
  * child rows in `socials`, `skills`, `projects` and `experiences`. Small

@@ -22,9 +22,10 @@ async function remoteImage(value: string, remaining = 3): Promise<string> {
   const hostname = url.hostname.replace(/^\[|\]$/g, "");
   const addresses = await lookup(hostname, { all: true });
   if (!addresses.length || addresses.some(item => !isPublicAddress(item.address))) return "";
-  const address = addresses[0];
+  const address = addresses.find(item => item.family === 4) || addresses[0];
   const result = await new Promise<{ data?: string; redirect?: string }>((accept, reject) => {
     const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(url, {
+      family: address.family,
       headers: { Accept: "image/png,image/jpeg,image/webp,image/gif", "User-Agent": "Myfolio-PDF/1.0" },
       // Pin the validated address, rather than resolving the hostname again during the request.
       lookup: (_hostname, _options, callback) => callback(null, address.address, address.family),

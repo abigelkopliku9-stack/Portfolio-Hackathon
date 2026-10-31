@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { PortfolioInput } from "../validation/portfolio.schema";
 import { renderCvHtml } from "../cv";
+import { renderBusinessCardHtml } from "../businessCard";
 import { preparePdfImages } from "./pdfImages";
 
 let browserPromise: Promise<Browser> | undefined;
@@ -22,12 +23,12 @@ async function getFont(): Promise<string> {
   fontPromise ??= readFile(resolve(process.cwd(), "public/fonts/Geist.woff2")).then(bytes => `data:font/woff2;base64,${bytes.toString("base64")}`).catch(error => { fontPromise = undefined; throw error; });
   return fontPromise;
 }
-/** Prints the same HTML, font, and theme used by the live CV preview. */
-export async function renderPdf(portfolio: PortfolioInput): Promise<Buffer> {
+/** Shared renderer for the CV and business card; both use their live preview templates. */
+async function renderDocumentPdf(portfolio: PortfolioInput, kind: "cv" | "card", publicUrl = ""): Promise<Buffer> {
   if (activeRenders >= 2) throw new PdfBusyError("The PDF service is busy. Please try again in a moment.");
   activeRenders += 1;
   try {
-    const [browser, font, prepared] = await Promise.all([getBrowser(), getFont(), preparePdfImages(portfolio)]);
+    const [browser, font, prepared] = await Promise.all([getBrowser(), getFont(), preparePdfImages(kind === "card" ? { ...portfolio, projects: [] } : portfolio)]);
     const context = await browser.createBrowserContext();
     try {
       const page = await context.newPage();
@@ -38,11 +39,19 @@ export async function renderPdf(portfolio: PortfolioInput): Promise<Buffer> {
         if (request.url().startsWith("data:") || request.url() === "about:blank") void request.continue();
         else void request.abort();
       });
-      await page.setContent(renderCvHtml(prepared, font), { waitUntil: "load", timeout: 20_000 });
-      const bytes = await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true, timeout: 20_000, tagged: true });
+      const html = kind === "card" ? renderBusinessCardHtml(prepared, publicUrl, font) : renderCvHtml(prepared, font);
+      await page.setContent(html, { waitUntil: "load", timeout: 20_000 });
+      const size = kind === "card" ? { width: "85mm", height: "55mm" } : { format: "A4" as const };
+      const bytes = await page.pdf({ ...size, printBackground: true, preferCSSPageSize: true, timeout: 20_000, tagged: true });
       return Buffer.from(bytes);
     } finally { await context.close(); }
   } finally { activeRenders -= 1; }
+}
+export function renderPdf(portfolio: PortfolioInput): Promise<Buffer> {
+  return renderDocumentPdf(portfolio, "cv");
+}
+export function renderBusinessCardPdf(portfolio: PortfolioInput, publicUrl: string): Promise<Buffer> {
+  return renderDocumentPdf(portfolio, "card", publicUrl);
 }
 export async function closePdfBrowser(): Promise<void> {
   if (!browserPromise) return;

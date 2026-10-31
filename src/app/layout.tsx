@@ -9,7 +9,7 @@ import { LocaleProvider } from "@/components/LocaleProvider";
 const geist = localFont({ src: "./fonts/Geist.woff2", variable: "--font-geist-sans", display: "swap", weight: "100 900" });
 const mono = localFont({ src: "./fonts/GeistMono.woff2", variable: "--font-geist-mono", display: "swap", weight: "100 900" });
 export const metadata: Metadata = {
-  title: { default: "Myfolio Generator — A home for your work", template: "%s | Myfolio Generator" },
+  title: { default: "Myfolio — A home for your work", template: "%s | Myfolio" },
   icons: { icon: "/myfolio-icon.svg", shortcut: "/myfolio-icon.svg" },
   description: "Your work deserves a place of its own. Create, customize, and share a beautiful portfolio. No coding required.",
 };

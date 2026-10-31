@@ -1,4 +1,4 @@
-# Myfolio Generator
+# Myfolio
 
 A Next.js (App Router) app that turns a form into a live, hosted portfolio page.
 Built for a 24-hour hackathon (Idea #8).
@@ -78,10 +78,16 @@ Only its SHA-256 hash is stored. The dashboard unlocks with the key.
 `minimal`, `dark`, `playful` — selected in the form and applied via
 `data-theme` on the portfolio shell (CSS variables).
 
-## Myfolio Generator: CV designs and PDF downloads
+## Myfolio: CV designs and PDF downloads
 
 The editor’s **CV / PDF** preview and the PDF export share one HTML/CSS template, including all five themes. Publishing automatically prepares a PDF; the success screen and public CV page also provide a retryable download button. Existing Word exports are still available. The floating Myfolio assistant answers searchable FAQs in English, Albanian, and German.
 
 PDF rendering uses Puppeteer and Chrome for Testing. `npm install` downloads the browser into the project-local `.cache/puppeteer` directory, which is ignored by Git. Keep that directory available on the deployed Node.js server, or set `PUPPETEER_EXECUTABLE_PATH` to an installed compatible Chrome. If the install skipped browser downloads, run `npx puppeteer browsers install chrome` from the project root. Linux hosts also need Chrome’s system libraries; see the [Puppeteer installation guide](https://pptr.dev/guides/installation).
 
 User-uploaded images are embedded directly. Remote images are size-limited and restricted to validated public addresses before being embedded. The renderer cannot make network requests from document content. Private or missing images are omitted without blocking a download.
+
+## Business cards
+
+Use the editor’s **Card** preview to see both sides of your personal business card in the selected theme. After publishing, **Download business card** is available beside the CV download, on the public portfolio, and on its CV page. Each download is a two-page PDF (front and back) with an exact page size of **85 × 55 mm**. The back includes your available email, location, main social or website link, and a clickable link to your published portfolio. No contact details are invented when fields are left empty.
+
+A dedicated preview lives at `/p/<slug>/card`; the PDF is served at `/api/portfolios/<slug>/export/card`. CV and business-card downloads share the existing browser renderer, embedded font, theme palette, image validation, and PDF rate limit.
