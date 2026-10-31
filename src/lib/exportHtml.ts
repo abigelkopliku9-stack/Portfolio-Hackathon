@@ -220,7 +220,7 @@ export function renderPortfolioHtml(portfolio: PortfolioRecord): string {
       </header>
       <div class="pf-body">
         ${sections.join("\n")}
-        <footer class="pf-footer">Built with Portfolio Generator · <a href="#">Downloaded copy</a></footer>
+        <footer class="pf-footer">Built with MyFolio · <a href="#">Downloaded copy</a></footer>
       </div>
     </div>
   </div>

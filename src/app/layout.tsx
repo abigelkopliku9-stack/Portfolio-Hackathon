@@ -8,7 +8,7 @@ import { LocaleProvider } from "@/components/LocaleProvider";
 const geist = localFont({ src: "./fonts/Geist.woff2", variable: "--font-geist-sans", display: "swap", weight: "100 900" });
 const mono = localFont({ src: "./fonts/GeistMono.woff2", variable: "--font-geist-mono", display: "swap", weight: "100 900" });
 export const metadata: Metadata = {
-  title: { default: "Portfolio Generator — A home for your work", template: "%s | Portfolio Generator" },
+  title: { default: "MyFolio — A home for your work", template: "%s | MyFolio" },
   description: "Your work deserves a place of its own. Create, customize, and share a beautiful portfolio. No coding required.",
 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {

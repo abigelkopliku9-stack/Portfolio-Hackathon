@@ -1,4 +1,4 @@
-# Portfolio Generator
+# MyFolio
 
 A Next.js (App Router) app that turns a form into a live, hosted portfolio page.
 Built for a 24-hour hackathon (Idea #8).

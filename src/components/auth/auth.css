@@ -1,0 +1,17 @@
+.auth-section { max-width: 440px; margin: 65px auto; padding: 0 20px; }
+.auth-section .ui-card { padding: 35px; }
+.auth-section h1 { font-size: 25px; letter-spacing: -0.8px; }
+.auth-section .auth-sub { font-size: 12px; color: #8d9680; line-height: 1.8; margin: 10px 0 24px; }
+.auth-section form .button { width: 100%; margin-top: 4px; }
+.auth-section form .button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+.auth-section .error-banner { margin-top: 0; }
+.auth-section .auth-switch { font-size: 11px; color: #8d9680; margin-top: 22px; text-align: center; }
+.auth-section .auth-switch a { color: var(--accent); font-weight: 550; border-bottom: 1px solid #a6b1a0; }
+
+.nav-auth { font-size: 12px; color: #73776c; background: transparent; border: 0; padding: 0; cursor: pointer; white-space: nowrap; }
+.nav-auth:hover { color: var(--accent); }
+.nav-user { font-size: 12px; font-weight: 600; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) {
+  .nav-user { display: none; }
+  .nav-auth { font-size: 10px; }
+}
